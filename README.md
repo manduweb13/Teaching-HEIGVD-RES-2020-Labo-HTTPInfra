@@ -87,7 +87,8 @@ La suite de commandes précédentes génère le package.json suivant.
 
 ```
 
-On fait un build de l'image et on lance un container
+On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom aléatoire dans notre console. Notre container s'arrête dès la fin du script du coup pas moyen pour le moment de l'accéder depuis un navigateur par exemple.
+
 
 
 
