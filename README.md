@@ -89,8 +89,48 @@ La suite de commandes précédentes génère le package.json suivant.
 
 On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom aléatoire dans notre console. Notre container s'arrête dès la fin du script du coup pas moyen pour le moment de l'accéder depuis un navigateur par exemple.
 
+### Implementation d'un serveur HTTP en NodeJS
 
+#### Installation du framework Express.js et test de fonctionnement
 
+On lance la commande suivante pour installer le framework dans notre répertoire src.
+
+```
+npm install --save express
+```
+
+Le répertoire node_modules contient les dépendances des différents packages installés, en général, on défini ce dossier dans le fichier .gitignore car il est volumineux.
+
+On insère ensuite le code suivant dans notre index.js.
+
+```Nodejs
+var Chance = require('chance');
+var chance = new Chance();
+
+var express = require('express');
+var app = express();
+
+app.get('/', function(req, res) {
+        res.send("Hello RES");
+});
+
+app.listen(3000, function () {
+        console.log('Accepting HTTP requests on port 3000!');
+});
+```
+
+On va donc écouter sur le port 3000 avec notre application et dès qu'une requête HTTP (GET) venant d'un client est reçue avec comme contenu '/', on retourne un message.
+
+Pour lancer notre application en local
+```
+node index.js
+```
+
+Pour se connecter en telnet à notre application
+```
+>telnet localhost 3000
+>GET / HTTP/1.0
+```
 
 
 ## Step 3: Reverse proxy with apache (static configuration)
