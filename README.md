@@ -38,7 +38,59 @@ Le premier est le point central de toute la configuration du serveur Apache. En 
 Le 2ème contient les configuration propres aux hôtes virtuels et aux chemin d'accès aux racines des différents sites ainsi qu'aux ports qui leurs sont attribués.
 
 
-## Step 2: Dynamic HTTP server with express.js
+## Etape 2: Serveur HTTP dynamique avec express.js
+Dans cette partie, nous allons écrire une application Node.js et apprendre à utiliser Postman pour tester notre application.
+
+### Récupération de l'image et Dockerfile
+Nous allons utiliser l'image node:12.16.3 qui est la dernière version stable et est disponible sur hub.docker.
+
+Le Dockerfile se décline comme ceci.
+```
+FROM node:12.16.3
+COPY src /opt/app
+
+CMD ["node", "/opt/app/index.js"]
+```
+
+### Initialisation de l'application NodeJS
+
+Dans le répertoire src que nous allons copier dans notre container, nous allons lancer la commande suivante pour initialiser l'application. Mais avant celà, il nous faut installer NodeJS sur notre machine en téléchargeant l'installer sur le [site de NodeJS](https://nodejs.org/en/download/).
+```
+npm init
+```
+
+Cette commande va générer un fichier package.json qui contient les informations propres à notre application.
+
+La commande suivante va ajouter la dépendance chance.js pour la génération de contenu aléatoire dans le package.json.
+
+```
+npm install --save chance
+```
+
+La suite de commandes précédentes génère le package.json suivant.
+
+```
+{
+  "name": "presences",
+  "version": "0.1.0",
+  "description": "Une application de gestion des presences",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Julien Brunisholz",
+  "license": "ISC",
+  "dependencies": {
+    "chance": "^1.1.4"
+  }
+}
+
+```
+
+On fait un build de l'image et on lance un container
+
+
+
 
 ## Step 3: Reverse proxy with apache (static configuration)
 
