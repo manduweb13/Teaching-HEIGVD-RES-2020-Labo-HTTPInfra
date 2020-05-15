@@ -201,6 +201,142 @@ function bordedRandomNumber(minV, maxV) {
 ```
 
 ## Step 3: Reverse proxy with apache (static configuration)
+Cette partie a pour but la mise en place d'un reverse proxy, c'est à dire un point central d'accès à notre infrastructure web. Ce reverse proxy va en effet recevoir les différentes requêtes adressées à notre infrastructure et les dispatcher vers la bonne destination interne.
+
+### Démarrage des container et tests de fonctionnement
+Nous allons ici démarrer des container à partir des images créées dans les deux étapes précédentes.
+
+`
+>docker run -d --name apache_static php_httpd
+>docker run -d --name express_dynamic express_presences
+
+`
+
+Ensuite, grâce à la commande docker inspect pour chaque container, on trouve (dans NetworkSettings/IPAddress) l'adresse IP donnée au container.
+
+* 172.17.0.2 pour apache_static
+* 172.17.0.2 pour express_dynamic
+
+Utilisant powershell sous windows comme interface de ligne de commande, cette commande correspond à un grep -i en bash
+`Powershell
+>docker inspect apache_static | Select-String -Pattern IPAddress
+`
+
+`bash
+>docker inspect apache_static | grep -i IPAddress
+`
+Ce qui nous donne la sortie suivante
+`
+"SecondaryIPAddresses": null,
+"IPAddress": "172.17.0.2",
+	"IPAddress": "172.17.0.2",
+`
+
+On peut ensuite tester nos container. Pour ceci, nous utilisons la commande suivante.
+
+`
+>docker-machine ssh
+`
+qui nous permet de nous connecter à notre machine virtuelle docker pour atteindre nos container. En effet, ceux-ci ne sont pas accessibles depuis l'extérieur du fait que nous n'avons pas fait de port forwarding.
+
+On lance ensuite une connexion telnet à chaqun des container puis on leur envoie une requête HTTP.
+
+`
+GET / HTTP/1.0
+`
+
+### Configuration du Reverse Proxy et routage des requêtes
+
+Dans cette configuration, les adresses ip des containers sont insérées en dur dans la configuration. Cette manière de faire n'est pas souhaitable si on souhaite obtenir une solution robuste. En effet, les adresses ip assignées aux container peuvent varier.
+
+Notre reverse proxy va être implémenté dans un container Docker basé sur la même image que pour le contenu statique que nous avons créé auparavant. L'image php:7.2-apache.
+
+La configuration voulue pour le reverse proxy doit nous permettre:
+
+* d'atteindre le site statique dans le container apache_static en spécifiant la requête
+`
+GET / HTTP/1.0
+Host: demo.res.ch
+`
+* d'atteindre le site dynamique (liste de présence) du container express_dynamic via la requête
+`
+GET /api/presences/ HTTP/1.0
+`
+#### configuration Dockerfile et des fichiers de configuration Apache
+Nous allons créer un nouveau répertoire apache-reverse-proxy qui va contenir les fichiers nécessaires à la création de notre image personnalisée pour le reverse proxy.
+
+Tout d'abord, un petit mot sur la structure de la configuration d'Apache.
+/etc/apache2, est le répertoire contenant les fichiers de configuration du service Apache. Ses sous-dossiers importants pour notre configuration sont :
+
+* mods-available : les modules disponibles
+* mods-enabled : les modules activés via l'utilitaire a2enmod
+* sites-available : les sous-sites disponibles
+* sites-enabled : les sous-sites activés via l'utilitaire a2ensite
+
+Le Dockerfile de notre image sera le suivant.
+
+``
+FROM php:7.2-apache                                                                                                                                                                                                                                                         COPY conf/ /etc/apache2                                                                                                                                                                                                                                                     RUN a2enmod proxy proxy_http                                                                                                          RUN a2ensite 000-* 001-*
+``
+La commande COPY va copier les fichiers de configuration Apache dans le répertoire de configuration du container à sa création. Ici il s'agit de copier le contenu du dossier sites-available (sous-dossier de conf) dans le container pour définir les 2 sites :
+* 000-default.conf qui définit le virtual host par défaut. On le défini comme ça pour que le client, s'il envoie une requête sans définir l'en-tête "Host:", n'arrive pas sur la configuration statique.
+
+RUN a2enmod ... va lancer l'utilitaire pour installer les 2 modules nécessaires pour configurer le proxy sur notre serveur.
+
+RUN a2ensite ... va activer les deux sites que nous avons copié précédemment.
+
+``
+<VirtualHost *:80>
+</VirtualHost>
+``
+
+* 001-reverse-proxy.conf qui défini les paramètres du routage vers nos deux containers.
+
+``
+<VirtualHost *:80>
+        ServerName demo.res.ch
+
+        ProxyPass "/api/presences/" "http://172.17.0.3:3000/"
+        ProxyPassReverse "/api/presences/" "http://172.17.0.3:3000/"
+
+        ProxyPass "/" "http://172.17.0.2:80/"
+        ProxyPassReverse "/" "http://172.17.0.2:80/"
+</VirtualHost>
+``
+Dans ce fichier, on peut voir qu'on spécifie le ServerName, donc le contenu de l'en-tête Host: attendu, Proxy Pass va spécifier une réécriture de l'url. Donc quand le client envoie "/api/presences/" au reverse proxy, celui-ci va faire passer l'URL "http://172.17.0.3:3000/" et ainsi permettre d'être opaque sur la structure présente derrière lui.
+
+A l'inverse on réécrit l'URL de base pour les réponses venant dans l'autre sens.
+
+
+Nous allons ensuite générer notre image via la commande docker build sous le nom "apache-rp".
+Puis nous allons lancer un container avec la commande suivante.
+
+``
+docker run -d -p 8080:80 apache-rp
+``
+
+#### Vérification du fonctionnement correct de nos routes
+
+Si on tape l'adresse ip de la VM Docker avec le port 8080, on atteint bien une page d'interdiction d'accès. En effet, on suit le sous-site par défaut 000.
+
+Il faut maintenant configurer le nom DNS demo.res.ch dans notre fichier hosts pour le faire correspondre à l'adresse ip de notre VM. Pour celà et sous Windows, il faut aller sous C:\Windows\System32\drivers\etc\hosts et insérer la ligne suivante dans le fichier.
+
+``
+192.168.99.100 demo.res.ch
+``
+
+
+
+
+
+
+
+
+
+
+
+
+configuration host 192.168.99.100 demo.res.ch et test ping
 
 ## Step 4: AJAX requests with JQuery
 
