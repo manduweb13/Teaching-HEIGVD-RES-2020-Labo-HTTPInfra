@@ -2,49 +2,49 @@
 
 ## Etape 1: Serveur HTTP statique avec Apache httpd
 
-AprÃ¨s avoir forkÃ© le repo du laboratoire, nous allons crÃ©er un container Docker Ã  partir de l'image php sur docker.hub et contenant un serveur httpd fonctionnel. 
+Après avoir forké le repo du laboratoire, nous allons créer un container Docker à partir de l'image php sur docker.hub et contenant un serveur httpd fonctionnel. 
 
-### Build de l'image, run du container et test d'accÃ¨s depuis un browser
-Nous allons d'abord crÃ©er la structure du contenu statique que nous voulons afficher sur notre serveur. Pour celÃ  nous allons choisir un template bootstrap dÃ©nichÃ© sur internet et customisÃ© pour prÃ©senter le cours RES. Nous allons placer ce contenu dans un dossier cotent.
+### Build de l'image, run du container et test d'accès depuis un browser
+Nous allons d'abord créer la structure du contenu statique que nous voulons afficher sur notre serveur. Pour celà nous allons choisir un template bootstrap déniché sur internet et customisé pour présenter le cours RES. Nous allons placer ce contenu dans un dossier content.
 
-Nous allons ensuite crÃ©er un Dockerfile dans le mÃªme dossier que le dossier content et allons y spÃ©cifier le contenu suivant. Nous utiliserons une image Docker contenant PHP couplÃ© Ã  un serveur Apache.
+Nous allons ensuite créer un Dockerfile dans le même dossier que le dossier content et allons y spécifier le contenu suivant. Nous utiliserons une image Docker contenant PHP couplé à un serveur Apache.
 
 ```
-#On rÃ©cupÃ¨re l'image sur dockerhub
+#On récupère l'image sur dockerhub
 FROM php:7.2-apache
-#Copie du contenu du dossier content (filesystem local) dans le rÃ©pertoire du serveur web de l'image
+#Copie du contenu du dossier content (filesystem local) dans le répertoire du serveur web de l'image
 COPY /content/ /var/www/html/
 ```
 
-GÃ©nÃ©ration de l'image avec la commande en Ã©tant dans le rÃ©pertoire du Dockerfile.
+Génération de l'image avec la commande en étant dans le répertoire du Dockerfile.
 ```
 docker build --tag php_httpd .
 ```
 
-Lancement d'un container avec l'image crÃ©Ã©e et Ã©coutant sur le port 8080. On a du port forwarding du port 8080 de l'hÃ´te sur le port 80 du container.
+Lancement d'un container avec l'image créée et écoutant sur le port 8080. On a du port forwarding du port 8080 de l'hôte sur le port 80 du container.
 
 ```
 docker run -d -p 8080:80 php_httpd
 ```
 
-On peut ensuite y accÃ©der en tappant 192.168.99.100:8080 dans le navigateur. L'adresse ip est celle-ci car j'utilise Docker Toolbox sur mon pc pour l'utiliser conjointement avec mes machines virtuelles. L'IP d'accÃ¨s peut ainsi varier selon la configuration du poste.
+On peut ensuite y accéder en tappant 192.168.99.100:8080 dans le navigateur. L'adresse ip est celle-ci car j'utilise Docker Toolbox sur mon pc pour l'utiliser conjointement avec mes machines virtuelles. L'IP d'accès peut ainsi varier selon la configuration du poste.
 
 ### Fichier de configuration Apache
 
-Les fichier de configurations sont accessible dans le rÃ©pertoire /etc/apache2 et on s'intÃ©resse pour le moment plus spÃ©cifiquement aux fichiers apache2.conf et /sites-available/000-default.conf.
+Les fichiers de configurations sont accessible dans le répertoire /etc/apache2 et on s'intéresse pour le moment plus spécifiquement aux fichiers apache2.conf et /sites-available/000-default.conf.
 
-Le premier est le point central de toute la configuration du serveur Apache. En effet, la configuration est splitÃ©e en plusieurs fichiers de configuration. Ce fichier fait le lien entre eux.
+Le premier est le point central de toute la configuration du serveur Apache. En effet, la configuration est scindée en plusieurs fichiers de configuration. Ce fichier fait le lien entre eux.
 
-Le 2Ã¨me contient les configuration propres aux hÃ´tes virtuels et aux chemin d'accÃ¨s aux racines des diffÃ©rents sites ainsi qu'aux ports qui leurs sont attribuÃ©s.
+Le 2ème contient les configuration propres aux hôtes virtuels et aux chemin d'accès aux racines des différents sites ainsi qu'aux ports qui leurs sont attribués.
 
 
 ## Etape 2: Serveur HTTP dynamique avec express.js
-Dans cette partie, nous allons Ã©crire une application Node.js et apprendre Ã  utiliser Postman pour tester notre application.
+Dans cette partie, nous allons écrire une application Node.js et apprendre à utiliser Postman pour tester notre application.
 
-### RÃ©cupÃ©ration de l'image et Dockerfile
-Nous allons utiliser l'image node:12.16.3 qui est la derniÃ¨re version stable et est disponible sur hub.docker.
+### Récupération de l'image et Dockerfile
+Nous allons utiliser l'image node:12.16.3 qui est la dernière version stable et est disponible sur hub.docker.
 
-Le Dockerfile se dÃ©cline comme ceci.
+Le Dockerfile se décline comme ceci.
 ```
 FROM node:12.16.3
 COPY src /opt/app
@@ -54,20 +54,20 @@ CMD ["node", "/opt/app/index.js"]
 
 ### Initialisation de l'application NodeJS
 
-Dans le rÃ©pertoire src que nous allons copier dans notre container, nous allons lancer la commande suivante pour initialiser l'application. Mais avant celÃ , il nous faut installer NodeJS sur notre machine en tÃ©lÃ©chargeant l'installer sur le [site de NodeJS](https://nodejs.org/en/download/).
+Dans le répertoire src que nous allons copier dans notre container, nous allons lancer la commande suivante pour initialiser l'application. Mais avant celÃ , il nous faut installer NodeJS sur notre machine en téléchargeant l'installer sur le [site de NodeJS](https://nodejs.org/en/download/).
 ```
 npm init
 ```
 
-Cette commande va gÃ©nÃ©rer un fichier package.json qui contient les informations propres Ã  notre application.
+Cette commande va générer un fichier package.json qui contient les informations propres Ã  notre application.
 
-La commande suivante va ajouter la dÃ©pendance chance.js pour la gÃ©nÃ©ration de contenu alÃ©atoire dans le package.json.
+La commande suivante va ajouter la dépendance chance.js pour la génération de contenu aléatoire dans le package.json.
 
 ```
 npm install --save chance
 ```
 
-La suite de commandes prÃ©cÃ©dentes gÃ©nÃ¨re le package.json suivant.
+La suite de commandes précédentes génère le package.json suivant.
 
 ```
 {
@@ -87,21 +87,21 @@ La suite de commandes prÃ©cÃ©dentes gÃ©nÃ¨re le package.json suivant.
 
 ```
 
-On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom alÃ©atoire dans notre console. Notre container s'arrÃªte dÃ¨s la fin du script du coup pas moyen pour le moment de l'accÃ©der depuis un navigateur par exemple.
+On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom aléatoire dans notre console. Notre container s'arrÃªte dès la fin du script du coup pas moyen pour le moment de l'accéder depuis un navigateur par exemple.
 
 ### Implementation d'un serveur HTTP en NodeJS
 
 #### Installation du framework Express.js et test de fonctionnement
 
-On lance la commande suivante pour installer le framework dans notre rÃ©pertoire src.
+On lance la commande suivante pour installer le framework dans notre répertoire src.
 
 ```
 npm install --save express
 ```
 
-Le rÃ©pertoire node_modules contient les dÃ©pendances des diffÃ©rents packages installÃ©s, en gÃ©nÃ©ral, on dÃ©fini ce dossier dans le fichier .gitignore car il est volumineux.
+Le répertoire node_modules contient les dépendances des différents packages installés, en général, on défini ce dossier dans le fichier .gitignore car il est volumineux.
 
-On insÃ¨re ensuite le code suivant dans notre index.js.
+On insère ensuite le code suivant dans notre index.js.
 
 ```Node.js
 var Chance = require('chance');
@@ -119,22 +119,22 @@ app.listen(3000, function () {
 });
 ```
 
-On va donc Ã©couter sur le port 3000 avec notre application et dÃ¨s qu'une requÃªte HTTP (GET) venant d'un client est reÃ§ue avec comme contenu '/', on retourne un message.
+On va donc écouter sur le port 3000 avec notre application et dès qu'une requÃªte HTTP (GET) venant d'un client est reÃ§ue avec comme contenu '/', on retourne un message.
 
 Pour lancer notre application en local
 ```
 node index.js
 ```
 
-Pour se connecter en telnet Ã  notre application
+Pour se connecter en telnet à notre application
 ```
 >telnet localhost 3000
 >GET / HTTP/1.0
 ```
 
-#### CrÃ©ation d'une premiÃ¨re petite application en NodeJs
+#### Création d'une première petite application en NodeJs
 
-Pour se familiariser avec NodeJs, le framework Express.js et l'outil chance.js, nous avons modifier l'index.js pour qu'il renvoie une liste au format json de membres avec une liste de prÃ©sences.
+Pour se familiariser avec NodeJs, le framework Express.js et l'outil chance.js, nous avons modifier l'index.js pour qu'il renvoie une liste au format json de membres avec une liste de présences.
 
 ```Node.js
 var Chance = require('chance');
@@ -151,12 +151,12 @@ app.listen(3000, function () {
         console.log('Accepting HTTP requests on port 3000!');
 });
 
-// GÃ©nÃ¨re un nombre de prÃ©sence alÃ©atoires pour des membres
+// Génère un nombre de présence aléatoires pour des membres
 function generatePresencesAndMembers() {
         var numberOfPresences = bordedRandomNumber(1,4);
         var numberOfMembers = bordedRandomNumber(1,5);
 
-        //Un membre a un nom, un prÃ©nom, un sexe et une date de naissance et un tableau //de prÃ©sences
+        //Un membre a un nom, un prénom, un sexe et une date de naissance et un tableau //de présences
         var members = [];
 
 
@@ -191,7 +191,7 @@ function generatePresencesAndMembers() {
 
 }
 
-// Retourne un nombre alÃ©atoire entre min et max
+// Retourne un nombre aléatoire entre min et max
 function bordedRandomNumber(minV, maxV) {
         return chance.integer({
                 min: minV,
@@ -324,19 +324,6 @@ Il faut maintenant configurer le nom DNS demo.res.ch dans notre fichier hosts po
 ``
 192.168.99.100 demo.res.ch
 ``
-
-
-
-
-
-
-
-
-
-
-
-
-configuration host 192.168.99.100 demo.res.ch et test ping
 
 ## Step 4: AJAX requests with JQuery
 
