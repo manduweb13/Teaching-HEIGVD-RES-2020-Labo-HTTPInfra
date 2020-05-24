@@ -327,4 +327,44 @@ Il faut maintenant configurer le nom DNS demo.res.ch dans notre fichier hosts po
 
 ## Step 4: AJAX requests with JQuery
 
+Dans cette partie, nous allons faire en sorte que notre site accessible via demo.res.ch fasse une requête ajax pour afficher le contenu dynamique envoyer par notre server web dynamique.
+
+Nous allons d'abord modifier le Dockerfile de notre image apache-php-image et insérer les commandes d'installation de vim.
+
+``
+FROM php:7.2-apache
+
+RUN apt-get update && \
+  apt-get install -y vim
+
+COPY /content/ /var/www/html/
+``
+
+et effectuer à nouveau un docker build pour créer une nouvelle image. On se connecte ensuite au container interactivement avec la commande docker run -it pour vérifier que l'outil vi fonctionne bien dans le container.
+
+On effectue la même manipulation sur les deux autres images que nous avions créé précédemment.
+
+On va nommer nos container ainsi :
+
+* apache_rp pour l'image apache-rp
+* express_presences pour l'image express_presences
+* apache_static pour l'image php_httpd
+
+Ayant spécifier les adresses IP en dur pour nos containers, il nous faut vérifier que les même IP ont été attribuées à nos nouveaux container, sinon nous devrons modifier les IP dans la configuration de notre Reverse Proxy.
+
+
+### Requête Ajax pour récupérer la liste dynamique
+
+Grâce à JQuery, nous allons récupérer la liste retournée par /api/presences/ et l'afficher dans la page statique de notre container statique en mettant à jour les données affichées à intervalle régulier.
+
+TODO --> METTRE A JOUR DOC PAR RAPPORT A :
+* fichier script presences.js
+* Récupération et affichage du tableau complet
+
+``Javascrip
+$(function() {
+        console.log("Loading presences");
+
+        function loadPresences() {                                                                                                                                                                                                                                                             $.getJSON( "/api/presences/", function( presences ) {                                                                                                                                                                                                                                  console.log(presences);                                                                                                                                                                                                                                                        var message = "Nobody is here";                                                                                                                                                                                                                                                if ( presences.length > 0 ){                                                                                                                                                                                                                                                           message = presences[0].firstName + " " + presences[0].lastName;                                                                                                                                                                                                        }                                                                                                                                                                                                                                                                              $(".presences").text(message);                                                                                                                                                                                                                                         });                                                                                                                                                                                                                                                                    };                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            loadPresences();                                                                                                                                                                                                                                                               setInterval( loadStudents, 2000);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     });
+
 ## Step 5: Dynamic reverse proxy configuration
