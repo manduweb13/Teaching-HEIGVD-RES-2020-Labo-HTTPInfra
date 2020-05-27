@@ -87,7 +87,7 @@ La suite de commandes précédentes génère le package.json suivant.
 
 ```
 
-On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom aléatoire dans notre console. Notre container s'arrÃªte dès la fin du script du coup pas moyen pour le moment de l'accéder depuis un navigateur par exemple.
+On fait un build de l'image et on lance un container, ceci va avoir pour effet d'afficher un nom aléatoire dans notre console. Notre container s'arrête dès la fin du script du coup pas moyen pour le moment de l'accéder depuis un navigateur par exemple.
 
 ### Implementation d'un serveur HTTP en NodeJS
 
@@ -119,7 +119,7 @@ app.listen(3000, function () {
 });
 ```
 
-On va donc écouter sur le port 3000 avec notre application et dès qu'une requÃªte HTTP (GET) venant d'un client est reÃ§ue avec comme contenu '/', on retourne un message.
+On va donc écouter sur le port 3000 avec notre application et dès qu'une requête HTTP (GET) venant d'un client est reÃ§ue avec comme contenu '/', on retourne un message.
 
 Pour lancer notre application en local
 ```
@@ -206,11 +206,11 @@ Cette partie a pour but la mise en place d'un reverse proxy, c'est à dire un poi
 ### Démarrage des container et tests de fonctionnement
 Nous allons ici démarrer des container à partir des images créées dans les deux étapes précédentes.
 
-`
+```
 >docker run -d --name apache_static php_httpd
 >docker run -d --name express_dynamic express_presences
 
-`
+```
 
 Ensuite, grâce à la commande docker inspect pour chaque container, on trouve (dans NetworkSettings/IPAddress) l'adresse IP donnée au container.
 
@@ -218,32 +218,32 @@ Ensuite, grâce à la commande docker inspect pour chaque container, on trouve (da
 * 172.17.0.2 pour express_dynamic
 
 Utilisant powershell sous windows comme interface de ligne de commande, cette commande correspond à un grep -i en bash
-`Powershell
+```Powershell
 >docker inspect apache_static | Select-String -Pattern IPAddress
-`
+```
 
-`bash
+```bash
 >docker inspect apache_static | grep -i IPAddress
-`
+```
 Ce qui nous donne la sortie suivante
-`
+```
 "SecondaryIPAddresses": null,
 "IPAddress": "172.17.0.2",
 	"IPAddress": "172.17.0.2",
-`
+```
 
 On peut ensuite tester nos container. Pour ceci, nous utilisons la commande suivante.
 
-`
+```
 >docker-machine ssh
-`
+```
 qui nous permet de nous connecter à notre machine virtuelle docker pour atteindre nos container. En effet, ceux-ci ne sont pas accessibles depuis l'extérieur du fait que nous n'avons pas fait de port forwarding.
 
 On lance ensuite une connexion telnet à chaqun des container puis on leur envoie une requête HTTP.
 
-`
+```
 GET / HTTP/1.0
-`
+```
 
 ### Configuration du Reverse Proxy et routage des requêtes
 
@@ -254,14 +254,14 @@ Notre reverse proxy va être implémenté dans un container Docker basé sur la même
 La configuration voulue pour le reverse proxy doit nous permettre:
 
 * d'atteindre le site statique dans le container apache_static en spécifiant la requête
-`
+```
 GET / HTTP/1.0
 Host: demo.res.ch
-`
+```
 * d'atteindre le site dynamique (liste de présence) du container express_dynamic via la requête
-`
+```
 GET /api/presences/ HTTP/1.0
-`
+```
 #### configuration Dockerfile et des fichiers de configuration Apache
 Nous allons créer un nouveau répertoire apache-reverse-proxy qui va contenir les fichiers nécessaires à la création de notre image personnalisée pour le reverse proxy.
 
@@ -275,9 +275,9 @@ Tout d'abord, un petit mot sur la structure de la configuration d'Apache.
 
 Le Dockerfile de notre image sera le suivant.
 
-``
+```
 FROM php:7.2-apache                                                                                                                                                                                                                                                         COPY conf/ /etc/apache2                                                                                                                                                                                                                                                     RUN a2enmod proxy proxy_http                                                                                                          RUN a2ensite 000-* 001-*
-``
+```
 La commande COPY va copier les fichiers de configuration Apache dans le répertoire de configuration du container à sa création. Ici il s'agit de copier le contenu du dossier sites-available (sous-dossier de conf) dans le container pour définir les 2 sites :
 * 000-default.conf qui définit le virtual host par défaut. On le défini comme ça pour que le client, s'il envoie une requête sans définir l'en-tête "Host:", n'arrive pas sur la configuration statique.
 
@@ -285,14 +285,14 @@ RUN a2enmod ... va lancer l'utilitaire pour installer les 2 modules nécessaires 
 
 RUN a2ensite ... va activer les deux sites que nous avons copié précédemment.
 
-``
+```
 <VirtualHost *:80>
 </VirtualHost>
-``
+```
 
 * 001-reverse-proxy.conf qui défini les paramètres du routage vers nos deux containers.
 
-``
+```
 <VirtualHost *:80>
         ServerName demo.res.ch
 
@@ -302,7 +302,7 @@ RUN a2ensite ... va activer les deux sites que nous avons copié précédemment.
         ProxyPass "/" "http://172.17.0.2:80/"
         ProxyPassReverse "/" "http://172.17.0.2:80/"
 </VirtualHost>
-``
+```
 Dans ce fichier, on peut voir qu'on spécifie le ServerName, donc le contenu de l'en-tête Host: attendu, Proxy Pass va spécifier une réécriture de l'url. Donc quand le client envoie "/api/presences/" au reverse proxy, celui-ci va faire passer l'URL "http://172.17.0.3:3000/" et ainsi permettre d'être opaque sur la structure présente derrière lui.
 
 A l'inverse on réécrit l'URL de base pour les réponses venant dans l'autre sens.
@@ -311,9 +311,9 @@ A l'inverse on réécrit l'URL de base pour les réponses venant dans l'autre sens.
 Nous allons ensuite générer notre image via la commande docker build sous le nom "apache-rp".
 Puis nous allons lancer un container avec la commande suivante.
 
-``
+```
 docker run -d -p 8080:80 apache-rp
-``
+```
 
 #### Vérification du fonctionnement correct de nos routes
 
@@ -321,9 +321,9 @@ Si on tape l'adresse ip de la VM Docker avec le port 8080, on atteint bien une p
 
 Il faut maintenant configurer le nom DNS demo.res.ch dans notre fichier hosts pour le faire correspondre à l'adresse ip de notre VM. Pour celà et sous Windows, il faut aller sous C:\Windows\System32\drivers\etc\hosts et insérer la ligne suivante dans le fichier.
 
-``
+```
 192.168.99.100 demo.res.ch
-``
+```
 
 ## Step 4: AJAX requests with JQuery
 
@@ -331,14 +331,14 @@ Dans cette partie, nous allons faire en sorte que notre site accessible via demo
 
 Nous allons d'abord modifier le Dockerfile de notre image apache-php-image et insérer les commandes d'installation de vim.
 
-``
+```
 FROM php:7.2-apache
 
 RUN apt-get update && \
   apt-get install -y vim
 
 COPY /content/ /var/www/html/
-``
+```
 
 et effectuer à nouveau un docker build pour créer une nouvelle image. On se connecte ensuite au container interactivement avec la commande docker run -it pour vérifier que l'outil vi fonctionne bien dans le container.
 
@@ -365,22 +365,22 @@ Nous allons travailler dans nos container Docker directement, nous allons donc l
 
 D'abord, dans index.html de notre container apache_static, nous allons ajouter la ligne suivante pour appeler le script que nous allons créer ensuite.
 
-``html
+```html
 <script src="js/presences.js"></script>
-``
+```
 
 Il nous faut ensuite un élément dans lequel accueillir notre contenu. Pour celà, nous allons ajouter une classe "presences" dans notre page html.
 
-``html
+```html
 <h3> Here is our presences list </h3>
 <div class="presences"></div>
-``
+```
 
 #### Création de la structure de dossier et du script presences.js
 
 Nous allons maintenant créer un dossier js qui accueillera nos scripts et allons y créer un fichier "presences.js".
 
-``javascript
+```javascript
 $(function() {
 	console.log("Loading presences");
 
@@ -443,7 +443,7 @@ $(function() {
 	//lancement de la fonction à intervalle régulier
 	setInterval(loadPresences, 5000);
 });
-``
+```
 
 Le style CSS a aussi été modifié pour permettre l'affichage du tableau, il est placé dans le sous-dossier assets.
 
