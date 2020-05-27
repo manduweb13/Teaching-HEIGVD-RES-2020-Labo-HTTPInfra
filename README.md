@@ -357,14 +357,97 @@ Ayant spécifier les adresses IP en dur pour nos containers, il nous faut vérifie
 
 Grâce à JQuery, nous allons récupérer la liste retournée par /api/presences/ et l'afficher dans la page statique de notre container statique en mettant à jour les données affichées à intervalle régulier.
 
-TODO --> METTRE A JOUR DOC PAR RAPPORT A :
-* fichier script presences.js
-* Récupération et affichage du tableau complet
+Notre api nous renvoie un tableau de membres ayant chacun un tableau associé avec ses présences, on veut afficher le tableau complet sur notre page statique.
 
-``Javascrip
+Nous allons travailler dans nos container Docker directement, nous allons donc lancer un docker exec interactif sur /bin/bash pour entrer dans le container et pouvoir modifier les fichiers.
+
+#### Appel au script et ajout d'élément DOM d'accueil dans index.html
+
+D'abord, dans index.html de notre container apache_static, nous allons ajouter la ligne suivante pour appeler le script que nous allons créer ensuite.
+
+``html
+<script src="js/presences.js"></script>
+``
+
+Il nous faut ensuite un élément dans lequel accueillir notre contenu. Pour celà, nous allons ajouter une classe "presences" dans notre page html.
+
+``html
+<h3> Here is our presences list </h3>
+<div class="presences"></div>
+``
+
+#### Création de la structure de dossier et du script presences.js
+
+Nous allons maintenant créer un dossier js qui accueillera nos scripts et allons y créer un fichier "presences.js".
+
+``javascript
 $(function() {
-        console.log("Loading presences");
+	console.log("Loading presences");
 
-        function loadPresences() {                                                                                                                                                                                                                                                             $.getJSON( "/api/presences/", function( presences ) {                                                                                                                                                                                                                                  console.log(presences);                                                                                                                                                                                                                                                        var message = "Nobody is here";                                                                                                                                                                                                                                                if ( presences.length > 0 ){                                                                                                                                                                                                                                                           message = presences[0].firstName + " " + presences[0].lastName;                                                                                                                                                                                                        }                                                                                                                                                                                                                                                                              $(".presences").text(message);                                                                                                                                                                                                                                         });                                                                                                                                                                                                                                                                    };                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            loadPresences();                                                                                                                                                                                                                                                               setInterval( loadStudents, 2000);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     });
+	function loadPresences() {
+		$.getJSON("/api/presences/", function(presences) {
+			console.log(presences);
+			var message = "Hobody was present...";
+			if (presences.length > 0) {
+				
+				//Recuperation des headers du json
+				var col = [];
+				
+				for(var i = 0; i < presences.length; i++){
+					for (var key in presences[i]) {
+						if(col.indexOf(key) === -1) {
+							col.push(key);
+						}
+					}
+				}
+
+				//Creation du tableau
+				var table = document.createElement("table");
+				var tr = table.insertRow(-1);
+
+				for (var i = 0; i < col.length; i++) {
+					var th = document.createElement("th");
+					th.innerHTML = col[i];
+					tr.appendChild(th);
+				}
+
+				for (var i = 0; i < presences.length; i++){
+					tr = table.insertRow(-1);
+
+					for(var j = 0; j < col.length; j++) {
+						var cell = tr.insertCell(-1);
+						
+						//Creation d'une liste de presences à insérer dans une cellule du tableau
+						if(j == 4){
+							var list = $('<ul/>').appendTo(cell);
+							for(var k = 0; k < presences[i][col[j]].length; k++){
+								var li = $('<li/>').appendTo(list).html((presences[i][col[j]])[k]['date'] + ' : ' + (presences[i][col[j]])[k]['eventLocation']);
+							}		
+						}
+						else{
+							cell.innerHTML = presences[i][col[j]];
+						}
+					}
+				}
+
+				message = table;
+			
+			}
+			// Supprimer l'ancien tableau et afficher le nouveau contenu
+			$(".presences").empty();	
+			$(".presences").append(message);
+		});
+	};
+
+	loadPresences();
+	//lancement de la fonction à intervalle régulier
+	setInterval(loadPresences, 5000);
+});
+``
+
+Le style CSS a aussi été modifié pour permettre l'affichage du tableau, il est placé dans le sous-dossier assets.
+
+Les modifications qui précèdent ont été faites sur un container docker en fonction via l'invite de commande interractive. Le fonctionnement ayant été validé, on va copier les fichiers modifier dans la structure de dossier de notre image apache_static et regénérer une nouvelle image avec la commande docker build et relancer nos container.
+
 
 ## Step 5: Dynamic reverse proxy configuration
