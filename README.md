@@ -451,3 +451,175 @@ Les modifications qui précèdent ont été faites sur un container docker en foncti
 
 
 ## Step 5: Dynamic reverse proxy configuration
+
+Dans une étape précédente, nous avions mis en place un reverse proxy faisant office de point central d'entrée dans notre infrastructure et permettant de router les requêtes reçues. Néanmoins, sa configuration est statique, se basant sur des adresses ip hardcodées. Cette étape vise à modifier la configuration de ce reverse proxy dynamiquement par rapport aux adresses ip des containers qui sont lancés.
+
+On va en premier lieu supprimer tous les containers avec la commande.
+
+```
+> docker rm `docker ps -qa`
+```
+
+### Passage de variables à un container via docker run
+
+Il est possible de passer une variable via la commande suivante au lancement d'un container.
+
+```
+> docker run -e MAVARIABLE=MAVALEUR -it apache_rp /bin/bash
+```
+
+La variable sera ensuite visible comme variable d'environnement dans le container. On peut l'afficher via la commande export.
+
+### Dockerfile et script de configuration dynamique
+
+Notre objectif est de faire en sorte que la configuration du fichier 001-reverse-proxy.conf, que nous avons pour le moment spécifié en dur, soit créé dynamiquement au lancement d'un nouveau container en fonction des IPs des containers.
+
+Nous allons d'abord observer le contenu du Dockerfile de l'image PHP que nous récupérons sur dockerhub. On peut voir qu'en fin de fichier, l'appel au script ``` CMD ["apache2-foreground"]``` est effectué. Cette commande est nécessaire pour que le container ne se termine pas tout de suite.
+
+Nous allons modifier le script apache2-foreground pour ce faire.
+
+Pour apprendre ceci, nous sommes allé consulté le Dockerfile utilisé par l'image de base pour notre server apache [ici](https://github.com/docker-library/php/blob/057b438e69093c927a84cce4308c7ad08ccdd5b0/7.2/buster/apache/Dockerfile).
+
+
+#### Modification du Dockerfile de l'image du reverse proxy
+
+On va devoir copier notre propre version du script apache2-foreground dans l'image, on va donc modifier notre docker file pour ce faire en ajoutant la ligne suivante.
+
+```
+COPY apache2-foreground /usr/local/bin
+```
+
+#### Modification du script apache2-foreground
+
+Nous plaçons un fichier apache2-foreground au même niveau que le Dockerfile de l'image du reverse proxy et nous y copions le contenu de base du fichier.
+
+Le fichier tel qu'il est avant nos modifications
+
+```bash
+#!/bin/bash
+set -e
+
+
+# Add setup for RES lab
+
+echo "Setup for the RES lab..."
+echo "Static app URL: $STATIC_APP"
+echo "Dynamic app URL: $DYNAMIC_APP"
+
+# Note: we don't just use "apache2ctl" here because it itself is just a shell-script wrapper around apache2 which provides extra functionality like "apache2ctl start" for launching apache2 in the background.
+# (also, when run as "apache2ctl <apache args>", it does not use "exec", which leaves an undesirable resident shell process)
+
+: "${APACHE_CONFDIR:=/etc/apache2}"
+: "${APACHE_ENVVARS:=$APACHE_CONFDIR/envvars}"
+if test -f "$APACHE_ENVVARS"; then
+        . "$APACHE_ENVVARS"
+fi
+
+# Apache gets grumpy about PID files pre-existing
+: "${APACHE_RUN_DIR:=/var/run/apache2}"
+: "${APACHE_PID_FILE:=$APACHE_RUN_DIR/apache2.pid}"
+rm -f "$APACHE_PID_FILE"
+
+# create missing directories
+# (especially APACHE_RUN_DIR, APACHE_LOCK_DIR, and APACHE_LOG_DIR)
+for e in "${!APACHE_@}"; do
+        if [[ "$e" == *_DIR ]] && [[ "${!e}" == /* ]]; then
+                # handle "/var/lock" being a symlink to "/run/lock", but "/run/lock" not existing beforehand, so "/var/lock/something" fails to mkdir
+                #   mkdir: cannot create directory '/var/lock': File exists
+                dir="${!e}"
+                while [ "$dir" != "$(dirname "$dir")" ]; do
+                        dir="$(dirname "$dir")"
+                        if [ -d "$dir" ]; then
+                                break
+                        fi
+                        absDir="$(readlink -f "$dir" 2>/dev/null || :)"
+                        if [ -n "$absDir" ]; then
+                                mkdir -p "$absDir"
+                        fi
+                done
+
+                mkdir -p "${!e}"
+        fi
+done
+
+exec apache2 -DFOREGROUND "$@"
+
+```
+
+On doit ensuite donner le droit d'exécution à notre fichier script.
+
+```bash
+chmod +x apache2-foreground
+```
+
+On va ensuite recréer notre image avec docker build puis la lancer avec docker run en spécifiant avec les "-e" les deux variables d'environnements pour tester l'affichage.
+
+```
+docker run -e STATIC_APP=172.17.0.2:80 -e DYNAMIC_APP=172.17.0.3:3000 apache-rp
+```
+
+
+Et on a bien la sortie attendue
+```
+Setup for the RES lab...
+Static app URL: 172.17.0.2:80
+Dynamic app URL: 172.17.0.3:3000
+```
+
+### Utilisation de php pour l'injection des variables d'envirronement
+
+Maintenant que nous avons un moyen de communiquer des informations à notre container depuis l'extérieur, il nous faut placer ces données dans le fichier de configuration. Pour ce faire, nous utiliserons php.
+
+On va d'abord créer un dossier templates dans l'arborescence de notre image puis y créer le fichier config-template.php.
+
+L'idée est de prendre comme modèle le fichier 001-reverse-proxy.conf et d'y injecter les variables d'environnement à la place des ip hardcodées.
+
+On copie donc le contenu de 001-reverse-proxy.conf dans notre fichier php.
+
+On utilise ensuite la fonction php getenv() pour récupérer les variables d'environnement et les placer dans 2 variables php distinctes.
+
+```php
+<?php
+    $ip_static = getenv('STATIC_APP');
+    $ip_dynamic = getenv('DYNAMIC_APP');
+?>
+```
+
+On remplace tous les guillemets double par des guillemets simples.
+Si on est sous vim, on peut simplement utiliser la commande suivante pour remplacer toues les occurences des doubles guillemets.
+
+```
+:%s/"/'/g
+```
+
+On remplace ensuite les adresses ip harcodées par des fragments de code php affichant le contenu des variables.
+
+```php
+ ProxyPass '/api/presences/' 'http://<?php print "$dynamic_app"?>/'
+ ProxyPassReverse '/api/presences/' 'http://<?php print "$dynamic_app"?>/'
+
+ ProxyPass '/' 'http://<?php print "$static_app"?>/'
+ ProxyPassReverse '/' 'http://<?php print "$static_app"?>/'
+```
+
+### Génération du fichier de configuration final avec php
+
+On va maintenant modifier à nouveau le Dockerfile pour copier le fichier template dans le répertoire /var/apache2/templates du container.
+
+On ajoute donc la ligne suivante.
+
+```
+COPY templates /var/apache2/templates
+```
+
+De plus, on veut que notre script (apache2-foreground) lance php et génère le fichier de configuration. on ajoute donc la ligne suivante dans le script.
+
+```bash
+php /var/apache2/templates/config-template.php > /etc/apache2/sites-available/001-revers
+e-proxy.conf
+```
+
+La sortie de la commande php est ainsi redirigée vers le fichier 001-reverse-proxy.conf.
+
+A noter que cette manipulation a ajouter à la fois la configuration dynamique des url dans sites-available mais aussi dans sites-enabled.
+
