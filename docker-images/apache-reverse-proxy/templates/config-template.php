@@ -1,6 +1,17 @@
 <?php
     $static_app = getenv('STATIC_APP');
     $dynamic_app = getenv('DYNAMIC_APP');
+
+    // Si les variables n'ont pas été fournies au container, on insère les valeurs par défaut
+
+    if(empty($static_app)){
+	    $static_app = "172.17.0.2:80";
+    }
+
+    if(empty($dynamic_app)){
+	    $dynamic_app = "172.17.0.3:3000";
+    }
+
 ?>
 
 
