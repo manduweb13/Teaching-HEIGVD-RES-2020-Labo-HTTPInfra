@@ -1,6 +1,12 @@
 <VirtualHost *:80>
         ServerName demo.res.ch
 
+
+	<Location /lb-view>
+		SetHandler balancer-manager
+	</Location>
+	ProxyPass /lb-view !
+
         <Proxy balancer://staticbalancer>
                 BalancerMember 'http://172.17.0.2:80'
                 BalancerMember 'http://172.17.0.3:80'
