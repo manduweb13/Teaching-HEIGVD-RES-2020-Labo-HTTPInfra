@@ -19,15 +19,15 @@ docker run -d --name express_presences2 express_presences
 $static1 = docker inspect apache_static1 --format '{{ .NetworkSettings.IPAddress }}'
 $static2 = docker inspect apache_static2 --format '{{ .NetworkSettings.IPAddress }}'
 
-$static1 + ':' + $STATIC_PORT
-$static2 + ':' + $STATIC_PORT
+$static1 = $static1 + ':' + $STATIC_PORT
+$static2 = $static2 + ':' + $STATIC_PORT
 
 $dynamic1 = docker inspect express_presences1 --format '{{ .NetworkSettings.IPAddress }}'
 $dynamic2 = docker inspect express_presences2 --format '{{ .NetworkSettings.IPAddress }}'
 
-$dynamic1 + ':' + $DYNAMIC_PORT
-$dynamic2 + ':' + $DYNAMIC_PORT
+$dynamic1 = $dynamic1 + ':' + $DYNAMIC_PORT
+$dynamic2 = $dynamic2 + ':' + $DYNAMIC_PORT
 
 # Lancer le container rp avec les variables
 
-docker run -d -e STATIC_APP1=$static1 -e STATIC_APP2=$static2 -e DYNAMIC_APP1=$dynamic1 -e DYNAMIC_APP2=$dynamic2 --name apache_rp apache-rp
+docker run -d -e STATIC_APP1=$static1 -e STATIC_APP2=$static2 -e DYNAMIC_APP1=$dynamic1 -e DYNAMIC_APP2=$dynamic2 -p 8080:80 --name apache_rp apache-rp
