@@ -1,26 +1,31 @@
 <?php
-    $static_app = getenv('STATIC_APP');
-    $dynamic_app = getenv('DYNAMIC_APP');
+    $static_app1 = getenv('STATIC_APP1');
+    $dynamic_app1 = getenv('DYNAMIC_APP1');
 
-    // Si les variables n'ont pas été fournies au container, on insère les valeurs par défaut
-
-    if(empty($static_app)){
-	    $static_app = "172.17.0.2:80";
-    }
-
-    if(empty($dynamic_app)){
-	    $dynamic_app = "172.17.0.3:3000";
-    }
+    $static_app2 = getenv('STATIC_APP2');
+    $dynamic_app2 = getenv('DYNAMIC_APP2');
 
 ?>
 
 
 <VirtualHost *:80>
-        ServerName demo.res.ch
+	ServerName demo.res.ch
 
-        ProxyPass '/api/presences/' 'http://<?php print "$dynamic_app"?>/'
-        ProxyPassReverse '/api/presences/' 'http://<?php print "$dynamic_app"?>/'
+	<Proxy balancer://staticbalancer>
+    		BalancerMember 'http://<?php print "$static_app1"?>' 
+		BalancerMember 'http://<?php print "$static_app2"?>'
+		ProxySet lbmethod=byrequests
+	</Proxy>
 
-        ProxyPass '/' 'http://<?php print "$static_app"?>/'
-        ProxyPassReverse '/' 'http://<?php print "$static_app"?>/'
+	<Proxy balancer://dynamicbalancer>
+    		BalancerMember 'http://<?php print "$dynamic_app1"?>' 
+		BalancerMember 'http://<?php print "$dynamic_app2"?>'
+		ProxySet lbmethod=byrequests
+	</Proxy>
+
+        ProxyPass '/api/presences/' 'balancer://staticbalancer'
+        ProxyPassReverse '/api/presences/' 'balancer://staticbalancer'
+
+        ProxyPass '/' 'balancer://dynamicbalancer/'
+        ProxyPassReverse '/' 'balancer://dynamicbalancer/'
 </VirtualHost>
