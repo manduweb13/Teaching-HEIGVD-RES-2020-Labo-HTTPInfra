@@ -623,3 +623,146 @@ La sortie de la commande php est ainsi redirigée vers le fichier 001-reverse-pro
 
 A noter que cette manipulation a ajouter à la fois la configuration dynamique des url dans sites-available mais aussi dans sites-enabled.
 
+## Etape 6 Load balancing
+
+Nous allons maintenant configurer notre infrastructure pour qu'elle gère le load balancing. 
+Le load balancing est un processus permettant de répartir un ensemble de tâches sur un ensemble de ressources et ainsi d'optimiser la réalisation de ces tâches.
+
+Le but est de fournir les mêmes services que dans les étapes précédentes, soit un service de contenu statique et un service de contenu dynamique mais en dupliquant chacun pour être fourni par deux serveur.
+
+On devra donc balancer la charge entre les deux serveurs statiques et aussi entre les deux serveurs dynamiques.
+
+### Configuration actuelle et modules
+
+On vérifie d'abord la version d'apache installée dans notre container.
+
+```
+apache2 -v
+Server version: Apache/2.4.38 (Debian)
+Server built:   2019-10-15T19:53:42
+```
+
+On a donc la version 2.4.
+
+En parcourant la documentation d'apache, on peut voir qu'il existe un module proxy_balancer étendant le module proxy_http que nous avions installé pour notre reverse proxy. Ce module fourni le support pour la répartition de charges pour le protocole http.
+
+De plus, il est nécessaire de charger un des modules suivants, qui définissent l'algorithme de planification de la répartition.
+
+* mod_lbmethod_byrequests
+* mod_lbmethod_bytraffic
+* mod_lbmethod_bybusyness
+* mod_lbmethod_heartbeat
+
+Nous allons utiliser le premier, l'algorithme d'attribution des requêtes.
+
+Le principe de cet algorithme est détaillé dans [https://httpd.apache.org/docs/2.4/mod/mod_lbmethod_byrequests.html](La documentation apache). En bref, elle va se baser le nombre de requêtes par noeud.rou
+
+Chaque node (serveur) est un travailleur qui se voit affecter une valeur lbfactor. Cette valeur représente le taux de travaille à effectuer pour ce noeud sur l'ensemble des requêtes. un lbfactor équivalent entre deux noeud répartira la charge en équivalence tandis que, par exemple, si on a un taux 30 pour un noeud et de 70 pour un autre, l'un aura à effectuer 30% des requêtes et l'autre 70%.
+
+De plus, chaque travailleur a un indice lbstatus qui représente l'urgence pour ce noeud de travailler. Le lbstatus est décrémenté à chaque fois que le travailleur travaille et c'est celui ayant le plus grand lbstatus qui est le prochain à travailler.
+
+### Installation des modules
+
+On modifie le Dockefile de l'image apache-reverse-proxy pour installer les modules proxy_balancer et lbmethod_byrequests au lancement.
+
+```
+RUN a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests
+```
+
+### Modification du template php pour la configuration du RP
+
+On va ensuite modifier le template pour :
+
+* Intégrer deux noeuds statiques et deux noeuds dynamiques
+* Dispatcher les requêtes pour les deux types de noeuds entre eux grâce à deux balancer
+* Monitorer nos balancer pour voir si ça fonctionne correctement
+
+Le fichier config-template.php sera le suivant.
+
+```xml
+<VirtualHost *:80>
+        ServerName demo.res.ch
+
+
+        <Location /lb-view>
+                SetHandler balancer-manager
+        </Location>
+        ProxyPass /lb-view !
+
+        <Proxy balancer://staticbalancer>
+                BalancerMember 'http://<?php print "$static_app1"?>'
+                BalancerMember 'http://<?php print "$static_app2"?>'
+                ProxySet lbmethod=byrequests
+        </Proxy>
+
+        <Proxy balancer://dynamicbalancer>
+                BalancerMember 'http://<?php print "$dynamic_app1"?>'
+                BalancerMember 'http://<?php print "$dynamic_app2"?>'
+                ProxySet lbmethod=byrequests
+        </Proxy>
+
+        ProxyPass '/api/presences/' 'balancer://dynamicbalancer'
+        ProxyPassReverse '/api/presences/' 'balancer://dynamicbalancer'
+
+        ProxyPass '/' 'balancer://staticbalancer/'
+        ProxyPassReverse '/' 'balancer:/staticbalancer/'
+</VirtualHost>
+```
+
+Après ces modifications, in faut rebuilder l'image du reverse proxy.
+
+### Tests de fonctionnement
+
+Pour tester plus rapidement, nous avons créé le script powershell suivant qui va lancer les containers, récupérer les ip et les passer au container du reverse proxy.
+
+A noter qu'il faut maintenant passer 4 variables d'environnement au container du reverser proxy pour les différents noeuds.
+
+```powershell
+#Ce script lance 2 container contenu static et 2 container contenu dynamic
+#Il récupère ensuite leurs ip et lance le container reverse proxy en les lui passant
+
+$STATIC_PORT = 80
+$DYNAMIC_PORT = 3000
+
+# run 2 nodes statiques
+
+docker run -d --name apache_static1 php_httpd
+docker run -d --name apache_static2 php_httpd
+
+# run 2 nodes dynamiques
+
+docker run -d --name express_presences1 express_presences
+docker run -d --name express_presences2 express_presences
+
+# Création des variables d'envirronement à passer au container du rp
+
+$static1 = docker inspect apache_static1 --format '{{ .NetworkSettings.IPAddress }}'
+$static2 = docker inspect apache_static2 --format '{{ .NetworkSettings.IPAddress }}'
+
+$static1 = $static1 + ':' + $STATIC_PORT
+$static2 = $static2 + ':' + $STATIC_PORT
+
+$dynamic1 = docker inspect express_presences1 --format '{{ .NetworkSettings.IPAddress }}'
+$dynamic2 = docker inspect express_presences2 --format '{{ .NetworkSettings.IPAddress }}'
+
+$dynamic1 = $dynamic1 + ':' + $DYNAMIC_PORT
+$dynamic2 = $dynamic2 + ':' + $DYNAMIC_PORT
+
+# Lancer le container rp avec les variables
+
+docker run -d -e STATIC_APP1=$static1 -e STATIC_APP2=$static2 -e DYNAMIC_APP1=$dynamic1 -e DYNAMIC_APP2=$dynamic2 -p 8080:80 --name apache_rp apache-rp
+``
+
+On peut maintenanr lancer notre application via notre navigateur avec demo.res.ch:8080.
+On peut recharger la page et vérifier le balancement d'un node à l'autre via l'url suivante sur un autre onglet.
+
+```
+http://demo.res.ch:8080/lb-view
+```
+
+On voit bien qu'à chaque regargement de la page dynamique, elected est incrémenté alternativement pour les deux nodes du balancer dynamique et de même pour le chargement de la page statique pour le balancer static.
+Il y a de plus une incrémentation à chaque fois que la requête ajax est envoyé aux noeuds dynamiques.
+
+[][monitoring_lb.png]
+
+
