@@ -747,22 +747,24 @@ $dynamic2 = docker inspect express_presences2 --format '{{ .NetworkSettings.IPAd
 
 $dynamic1 = $dynamic1 + ':' + $DYNAMIC_PORT
 $dynamic2 = $dynamic2 + ':' + $DYNAMIC_PORT
+```
 
 # Lancer le container rp avec les variables
 
+```
 docker run -d -e STATIC_APP1=$static1 -e STATIC_APP2=$static2 -e DYNAMIC_APP1=$dynamic1 -e DYNAMIC_APP2=$dynamic2 -p 8080:80 --name apache_rp apache-rp
-``
+```
 
-On peut maintenanr lancer notre application via notre navigateur avec demo.res.ch:8080.
+On peut maintenant lancer notre application via notre navigateur avec demo.res.ch:8080.
 On peut recharger la page et vérifier le balancement d'un node à l'autre via l'url suivante sur un autre onglet.
 
-```
+
 http://demo.res.ch:8080/lb-view
-```
+
 
 On voit bien qu'à chaque regargement de la page dynamique, elected est incrémenté alternativement pour les deux nodes du balancer dynamique et de même pour le chargement de la page statique pour le balancer static.
 Il y a de plus une incrémentation à chaque fois que la requête ajax est envoyé aux noeuds dynamiques.
 
-[][monitoring_lb.png]
+![La vue de monitoring du loadbalancer](monitoring_lb.png)
 
 
