@@ -450,7 +450,7 @@ Le style CSS a aussi été modifié pour permettre l'affichage du tableau, il est p
 Les modifications qui précèdent ont été faites sur un container docker en fonction via l'invite de commande interractive. Le fonctionnement ayant été validé, on va copier les fichiers modifier dans la structure de dossier de notre image apache_static et regénérer une nouvelle image avec la commande docker build et relancer nos container.
 
 
-## Step 5: Dynamic reverse proxy configuration
+## Etape 5 : Configuration dynamique pour le reverse proxy
 
 Dans une étape précédente, nous avions mis en place un reverse proxy faisant office de point central d'entrée dans notre infrastructure et permettant de router les requêtes reçues. Néanmoins, sa configuration est statique, se basant sur des adresses ip hardcodées. Cette étape vise à modifier la configuration de ce reverse proxy dynamiquement par rapport aux adresses ip des containers qui sont lancés.
 
@@ -767,4 +767,40 @@ Il y a de plus une incrémentation à chaque fois que la requête ajax est envoyé a
 
 ![La vue de monitoring du loadbalancer](monitoring_lb.png)
 
+##Etape 7 : Interface graphique de gestion des containers
 
+L'outil Kitematic est disponible directement avec l'installation de Docker Toolbox. Mais il n'est pas accessible via une interface web.
+
+Nous avons donc opté pour Portainer qui est installé via un container Docker.
+
+### Lancement du container
+
+On utilise la commande docker run pour lancer le container de Portainer.
+
+```
+docker run -d -p 9000:9000 -v //var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer
+```
+
+Le premier flag -v permet de faire le lien entre portainer et le socket sur lequel écoute le daemon de Docker. Celà permettra d'envoyer par exemple les commandes d'arrêt et de démarrage des containers à Docker.
+
+Le 2ème flag v permet de créer un volume qui rendra persistentes les données spécifiées dans Portainer.
+
+### Accès à l'interface
+
+Suite au docker run précédent, nous pouvons accéder via notre url spécifiée dans le fichier host dans une de nos étapes précédente soit demo.res.ch:9000.
+
+L'interface nous demande de créer un compte avec un mot de passe.
+![](portainer1.png)
+
+Nous devons ensuite sélectionner l'environnement que Portainer doit gérer. Nous prenons l'environnement local pour manager les containers Docker de l'infrastrucure de notre machine.
+![](portainer2.png)
+
+L'interface suivante permet de voir la liste de nos manager, nous n'avons que celui pour la machine locale mais il est possible d'installer d'autres manager pour des machines distantes ou autres.
+
+![](portainer3.png)
+
+En cliquant sur le manager local, on a une vue d'ensemble de notre environnement, on peut ainsi voir le nombre d'images, de containers.
+![](portainer4.png)
+
+Si on clic sur Containers, on peut voir l'états des containers locaux, les stopper, les démarrer.
+![](portainer5.png)
