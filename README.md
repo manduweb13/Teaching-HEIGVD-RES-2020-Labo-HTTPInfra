@@ -663,7 +663,7 @@ De plus, chaque travailleur a un indice lbstatus qui représente l'urgence pour c
 
 ### Installation des modules
 
-On modifie le Dockefile de l'image apache-reverse-proxy pour installer les modules proxy_balancer et lbmethod_byrequests au lancement.
+On modifie le Dockerfile de l'image apache-reverse-proxy pour installer les modules proxy_balancer et lbmethod_byrequests au lancement.
 
 ```
 RUN a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests
@@ -715,7 +715,7 @@ Après ces modifications, in faut rebuilder l'image du reverse proxy.
 
 Pour tester plus rapidement, nous avons créé le script powershell suivant qui va lancer les containers, récupérer les ip et les passer au container du reverse proxy.
 
-A noter qu'il faut maintenant passer 4 variables d'environnement au container du reverser proxy pour les différents noeuds.
+A noter qu'il faut maintenant passer 4 variables d'environnement au container du reverse proxy pour les différents noeuds.
 
 ```powershell
 #Ce script lance 2 container contenu static et 2 container contenu dynamic
@@ -762,7 +762,7 @@ On peut recharger la page et vérifier le balancement d'un node à l'autre via l'u
 http://demo.res.ch:8080/lb-view
 
 
-On voit bien qu'à chaque regargement de la page dynamique, elected est incrémenté alternativement pour les deux nodes du balancer dynamique et de même pour le chargement de la page statique pour le balancer static.
+On voit bien qu'à chaque rechargement de la page dynamique, elected est incrémenté alternativement pour les deux nodes du balancer dynamique et de même pour le chargement de la page statique pour le balancer static.
 Il y a de plus une incrémentation à chaque fois que la requête ajax est envoyé aux noeuds dynamiques.
 
 ![La vue de monitoring du loadbalancer](monitoring_lb.png)
